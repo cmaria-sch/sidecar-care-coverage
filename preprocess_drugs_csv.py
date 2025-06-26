@@ -35,9 +35,9 @@ class DrugUUIDProcessor:
             'accept': '*/*',
             'accept-language': 'en-US,en;q=0.9',
             'content-type': 'application/json; charset=utf-8',
-            'origin': 'https://dev-app.sidecarhealth.com',
+            'origin': 'https://app.sidecarhealth.com',
             'priority': 'u=1, i',
-            'referer': 'https://dev-app.sidecarhealth.com/',
+            'referer': 'https://app.sidecarhealth.com/',
             'sec-ch-ua': '"Brave";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"macOS"',
@@ -142,7 +142,7 @@ class DrugUUIDProcessor:
             return self.uuid_cache[procedure_code]
         
         try:
-            search_url = "https://dev-api.sidecarhealth.com/care/v1/cares/search"
+            search_url = "https://prod-api.sidecarhealth.com/care/v1/cares/search"
             params = {
                 'memberUuid': self.member_uuid,
                 'query': procedure_code,
