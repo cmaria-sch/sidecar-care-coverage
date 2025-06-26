@@ -1,0 +1,100 @@
+PROCEDURE_CODE,DRUG_NAME_WITH_FORM_STRENGTH,DOSAGE_FORM,TOTAL_BENEFIT_AMOUNT,BENEFIT_PERCENTAGE,CLAIM_COUNT,CLAIMS_FREQUENCY_PERCENTAGE
+00169477212,Ozempic (2 MG/DOSE) 8MG/3ML Solution Pen-injector,SOPN,"  633,527 ",2.25%,629,0.55%
+08627007701,Dexcom G7 Sensor  Miscellaneous,MISC,"  213,727 ",0.76%,577,0.50%
+00003089421,Eliquis 5MG Tablet,TABS,"  389,330 ",1.38%,548,0.48%
+31722072610,Montelukast Sodium 10MG Tablet,TABS,"  11,097 ",0.04%,517,0.45%
+00169418113,Ozempic 2MG/3ML Solution Pen-injector,SOPN,"  496,901 ",1.77%,504,0.44%
+00169413013,Ozempic (1 MG/DOSE) 4MG/3ML Solution Pen-injector,SOPN,"  493,673 ",1.75%,497,0.43%
+00088221905,Lantus SoloStar 100UNIT/ML Solution Pen-injector,SOPN,"  158,301 ",0.56%,483,0.42%
+42806040021,methylPREDNISolone 4MG Tablet Therapy Pack,TBPK,"  3,876 ",0.01%,471,0.41%
+65862050320,Amoxicillin-Pot Clavulanate 875-125MG Tablet,TABS,"  11,891 ",0.04%,463,0.40%
+66993001968,"Albuterol Sulfate HFA 108 (90 Base)MCG/ACT Aerosol, Solution",AERS,"  22,741 ",0.08%,449,0.39%
+60505082901,Fluticasone Propionate 50MCG/ACT Suspension,SUSP,"  3,394 ",0.01%,436,0.38%
+00597015330,Jardiance 25MG Tablet,TABS,"  363,767 ",1.29%,407,0.35%
+57599081800,FreeStyle Libre 3 Sensor  Miscellaneous,MISC,"  46,473 ",0.17%,392,0.34%
+68180098003,Lisinopril 10MG Tablet,TABS,"  4,890 ",0.02%,384,0.33%
+00093317431,"Albuterol Sulfate HFA 108 (90 Base)MCG/ACT Aerosol, Solution",AERS,"  10,290 ",0.04%,381,0.33%
+70954006020,predniSONE 20MG Tablet,TABS,"  2,457 ",0.01%,379,0.33%
+00597015230,Jardiance 10MG Tablet,TABS,"  272,015 ",0.97%,363,0.32%
+68382005105,Meloxicam 15MG Tablet,TABS,"  8,002 ",0.03%,363,0.32%
+00002149580,Mounjaro 5MG/0.5ML Solution Pen-injector,SOAJ,"  366,299 ",1.30%,350,0.30%
+70010049105,metFORMIN HCl ER 500MG Tablet Extended Release 24 HR,TB24,"  5,312 ",0.02%,346,0.30%
+68180096301,"Albuterol Sulfate HFA 108 (90 Base)MCG/ACT Aerosol, Solution",AERS,"  8,181 ",0.03%,333,0.29%
+00172208380,hydroCHLOROthiazide 25MG Tablet,TABS,"  3,223 ",0.01%,333,0.29%
+68462039710,Omeprazole 40MG Capsule Delayed Release,CPDR,"  6,167 ",0.02%,320,0.28%
+00002148480,Mounjaro 7.5MG/0.5ML Solution Pen-injector,SOAJ,"  318,560 ",1.13%,301,0.26%
+72205002499,Atorvastatin Calcium 40MG Tablet,TABS,"  5,810 ",0.02%,300,0.26%
+68462015713,Ondansetron 4MG Tablet Disintegrating,TBDP,"  6,443 ",0.02%,299,0.26%
+68180098103,Lisinopril 20MG Tablet,TABS,"  4,373 ",0.02%,290,0.25%
+31722071310,Pantoprazole Sodium 40MG Tablet Delayed Release,TBEC,"  5,030 ",0.02%,289,0.25%
+42806054701,Vitamin D (Ergocalciferol) 1.25 MG(50000 UT) Capsule,CAPS,"  3,350 ",0.01%,287,0.25%
+57599080000,FreeStyle Libre 2 Sensor  Miscellaneous,MISC,"  29,673 ",0.11%,281,0.24%
+13668013610,Escitalopram Oxalate 10MG Tablet,TABS,"  7,732 ",0.03%,274,0.24%
+16571086350,buPROPion HCl ER (XL) 300MG Tablet Extended Release 24 HR,TB24,"  9,060 ",0.03%,263,0.23%
+00002147180,Mounjaro 10MG/0.5ML Solution Pen-injector,SOAJ,"  291,890 ",1.04%,260,0.23%
+69097083412,Sertraline HCl 50MG Tablet,TABS,"  9,667 ",0.03%,257,0.22%
+16571086250,buPROPion HCl ER (XL) 150MG Tablet Extended Release 24 HR,TB24,"  8,185 ",0.03%,253,0.22%
+00002150680,Mounjaro 2.5MG/0.5ML Solution Pen-injector,SOAJ,"  261,689 ",0.93%,249,0.22%
+13668013710,Escitalopram Oxalate 20MG Tablet,TABS,"  8,526 ",0.03%,248,0.22%
+55111064505,Omeprazole 40MG Capsule Delayed Release,CPDR,"  5,220 ",0.02%,248,0.22%
+29300039810,amLODIPine Besylate 10MG Tablet,TABS,"  3,003 ",0.01%,233,0.20%
+68180097903,Lisinopril 40MG Tablet,TABS,"  3,757 ",0.01%,228,0.20%
+67877015905,metFORMIN HCl ER 500MG Tablet Extended Release 24 HR,TB24,"  3,740 ",0.01%,225,0.20%
+66993045730,Dapagliflozin Propanediol 10MG Tablet,TABS,"  159,569 ",0.57%,222,0.19%
+29300039710,amLODIPine Besylate 5MG Tablet,TABS,"  2,338 ",0.01%,222,0.19%
+69097083512,Sertraline HCl 100MG Tablet,TABS,"  6,548 ",0.02%,221,0.19%
+08627005303,Dexcom G6 Sensor  Miscellaneous,MISC,"  68,825 ",0.24%,210,0.18%
+65862056099,Pantoprazole Sodium 40MG Tablet Delayed Release,TBEC,"  3,140 ",0.01%,207,0.18%
+00002145780,Mounjaro 15MG/0.5ML Solution Pen-injector,SOAJ,"  238,494 ",0.85%,205,0.18%
+69452015120,Vitamin D (Ergocalciferol) 1.25 MG(50000 UT) Capsule,CAPS,"  2,384 ",0.01%,203,0.18%
+42806041405,buPROPion HCl ER (XL) 150MG Tablet Extended Release 24 HR,TB24,"  6,563 ",0.02%,201,0.17%
+67877021905,Cephalexin 500MG Capsule,CAPS,"  2,914 ",0.01%,200,0.17%
+27808023302,Doxycycline Hyclate 100MG Capsule,CAPS,"  4,810 ",0.02%,198,0.17%
+57237000511,Fluconazole 150MG Tablet,TABS,"  6,453 ",0.02%,191,0.17%
+00054327099,Fluticasone Propionate 50MCG/ACT Suspension,SUSP,"  1,459 ",0.01%,185,0.16%
+65862000899,metFORMIN HCl 500MG Tablet,TABS,"  2,125 ",0.01%,182,0.16%
+31722070210,Losartan Potassium 100MG Tablet,TABS,"  3,306 ",0.01%,181,0.16%
+69097014260,"Albuterol Sulfate HFA 108 (90 Base)MCG/ACT Aerosol, Solution",AERS,"  3,479 ",0.01%,180,0.16%
+29300012810,hydroCHLOROthiazide 25MG Tablet,TABS,"  1,661 ",0.01%,179,0.16%
+00002146080,Mounjaro 12.5MG/0.5ML Solution Pen-injector,SOAJ,"  190,466 ",0.68%,176,0.15%
+65862059805,Tamsulosin HCl 0.4MG Capsule,CAPS,"  4,604 ",0.02%,176,0.15%
+68382056410,Metoprolol Succinate ER 25MG Tablet Extended Release 24 HR,TB24,"  3,543 ",0.01%,176,0.15%
+00002822259,Insulin Lispro (1 Unit Dial) 100UNIT/ML Solution Pen-injector,SOPN,"  42,445 ",0.15%,175,0.15%
+65862042005,Sulfamethoxazole-Trimethoprim 800-160MG Tablet,TABS,"  2,956 ",0.01%,174,0.15%
+00378668910,Pantoprazole Sodium 40MG Tablet Delayed Release,TBEC,"  2,981 ",0.01%,173,0.15%
+29300024505,busPIRone HCl 10MG Tablet,TABS,"  5,125 ",0.02%,171,0.15%
+00406012301,HYDROcodone-Acetaminophen 5-325MG Tablet,TABS,"  3,572 ",0.01%,169,0.15%
+00093310905,Amoxicillin 500MG Capsule,CAPS,"  1,651 ",0.01%,167,0.15%
+72205002399,Atorvastatin Calcium 20MG Tablet,TABS,"  3,128 ",0.01%,165,0.14%
+29300039705,amLODIPine Besylate 5MG Tablet,TABS,"  1,717 ",0.01%,164,0.14%
+43547028211,Escitalopram Oxalate 20MG Tablet,TABS,"  4,181 ",0.01%,163,0.14%
+00555901658,Sprintec 28 0.25-35MG-MCG Tablet,TABS,"  4,633 ",0.02%,162,0.14%
+43598058230,Buprenorphine HCl-Naloxone HCl 8-2MG Film,FILM,"  19,340 ",0.07%,161,0.14%
+59651036205,Ibuprofen 800MG Tablet,TABS,"  4,398 ",0.02%,161,0.14%
+72205002299,Atorvastatin Calcium 10MG Tablet,TABS,"  2,532 ",0.01%,161,0.14%
+70377007813,Atorvastatin Calcium 20MG Tablet,TABS,"  2,805 ",0.01%,160,0.14%
+31722070110,Losartan Potassium 50MG Tablet,TABS,"  2,050 ",0.01%,159,0.14%
+50111056003,traZODone HCl 50MG Tablet,TABS,"  3,592 ",0.01%,157,0.14%
+68382013210,Tamsulosin HCl 0.4MG Capsule,CAPS,"  2,871 ",0.01%,157,0.14%
+68382050010,Omeprazole 40MG Capsule Delayed Release,CPDR,"  3,837 ",0.01%,155,0.13%
+61958250101,Biktarvy 50-200-25MG Tablet,TABS,"  707,586 ",2.51%,154,0.13%
+43547036211,Losartan Potassium 100MG Tablet,TABS,"  3,059 ",0.01%,154,0.13%
+00430042014,Lo Loestrin Fe 1 MG-10 MCG /10 MCG Tablet,TABS,"  42,342 ",0.15%,151,0.13%
+00024591502,Dupixent 300MG/2ML Solution Pen-injector,SOAJ,"  791,507 ",2.81%,150,0.13%
+51991074810,DULoxetine HCl 60MG Capsule Delayed Release Particles,CPEP,"  3,514 ",0.01%,150,0.13%
+68180086111,Azithromycin 250MG Tablet,TABS,"  2,943 ",0.01%,150,0.13%
+43547036111,Losartan Potassium 50MG Tablet,TABS,"  2,398 ",0.01%,150,0.13%
+55111015810,Omeprazole 20MG Capsule Delayed Release,CPDR,"  2,873 ",0.01%,149,0.13%
+65862001501,Amoxicillin 875MG Tablet,TABS,"  1,861 ",0.01%,148,0.13%
+65862001305,Sertraline HCl 100MG Tablet,TABS,"  4,106 ",0.01%,143,0.12%
+68382056510,Metoprolol Succinate ER 50MG Tablet Extended Release 24 HR,TB24,"  2,378 ",0.01%,143,0.12%
+00603459315,methylPREDNISolone 4MG Tablet Therapy Pack,TBPK,"  1,102 ",0.00%,143,0.12%
+42806041605,buPROPion HCl ER (XL) 300MG Tablet Extended Release 24 HR,TB24,"  4,482 ",0.02%,141,0.12%
+29300012510,Meloxicam 15MG Tablet,TABS,"  2,834 ",0.01%,141,0.12%
+68180072103,amLODIPine Besylate 10MG Tablet,TABS,"  1,864 ",0.01%,141,0.12%
+29300024405,busPIRone HCl 5MG Tablet,TABS,"  2,720 ",0.01%,140,0.12%
+69097012715,amLODIPine Besylate 5MG Tablet,TABS,"  1,459 ",0.01%,138,0.12%
+08508300021,Omnipod 5 G6 Pod (Gen 5)  Miscellaneous,MISC,"  111,973 ",0.40%,137,0.12%
+00173088710,"Trelegy Ellipta 100-62.5-25MCG/ACT Aerosol Powder, Breath Activated",AEPB,"  92,801 ",0.33%,137,0.12%
+00002771559,Basaglar KwikPen 100UNIT/ML Solution Pen-injector,SOPN,"  58,518 ",0.21%,134,0.12%
+00310737020,Budesonide-Formoterol Fumarate 160-4.5MCG/ACT Aerosol,AERO,"  28,571 ",0.10%,134,0.12%
