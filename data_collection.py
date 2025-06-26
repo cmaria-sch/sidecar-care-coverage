@@ -254,7 +254,8 @@ class SidecarAPICollector:
         token = os.environ.get('TOKEN')
         if token:
             logger.info("Using TOKEN from environment variable")
-            return token
+            # Clean the token of any extra whitespace, quotes, or newlines
+            return token.strip().strip('"').strip("'")
         
         # If not found, try to run grab_token.sh to get the token
         logger.info("TOKEN not found in environment, running grab_token.sh...")
@@ -270,6 +271,8 @@ class SidecarAPICollector:
             for line in output_lines:
                 if line.startswith('TOKEN='):
                     token = line.split('=', 1)[1]
+                    # Clean the token of any extra whitespace, quotes, or newlines
+                    token = token.strip().strip('"').strip("'")
                     logger.info("Successfully obtained TOKEN from grab_token.sh")
                     return token
             
@@ -278,7 +281,8 @@ class SidecarAPICollector:
             token = os.environ.get('TOKEN')
             if token:
                 logger.info("Using TOKEN from environment after running grab_token.sh")
-                return token
+                # Clean the token of any extra whitespace, quotes, or newlines
+                return token.strip().strip('"').strip("'")
             
             raise ValueError("Could not extract TOKEN from grab_token.sh output")
             
@@ -299,7 +303,8 @@ class SidecarAPICollector:
         member_uuid = os.environ.get('MEMBERUUID')
         if member_uuid:
             logger.info("Using MEMBERUUID from environment variable")
-            return member_uuid
+            # Clean the member_uuid of any extra whitespace, quotes, or newlines
+            return member_uuid.strip().strip('"').strip("'")
         
         # If not found, try to run grab_token.sh to get the memberUUID
         logger.info("MEMBERUUID not found in environment, running grab_token.sh...")
@@ -315,6 +320,8 @@ class SidecarAPICollector:
             for line in output_lines:
                 if line.startswith('MEMBERUUID='):
                     member_uuid = line.split('=', 1)[1]
+                    # Clean the member_uuid of any extra whitespace, quotes, or newlines
+                    member_uuid = member_uuid.strip().strip('"').strip("'")
                     logger.info("Successfully obtained MEMBERUUID from grab_token.sh")
                     return member_uuid
             
@@ -323,7 +330,8 @@ class SidecarAPICollector:
             member_uuid = os.environ.get('MEMBERUUID')
             if member_uuid:
                 logger.info("Using MEMBERUUID from environment after running grab_token.sh")
-                return member_uuid
+                # Clean the member_uuid of any extra whitespace, quotes, or newlines
+                return member_uuid.strip().strip('"').strip("'")
             
             raise ValueError("Could not extract MEMBERUUID from grab_token.sh output")
             
@@ -480,7 +488,6 @@ class SidecarAPICollector:
                 'procedure_code': drug_info['procedure_code'],
                 'drug_name': drug_info['drug_name'],
                 'dosage_form': drug_info['dosage_form'],
-                'total_benefit_amount_orig': drug_info['total_benefit_amount'],
                 'claim_count_orig': drug_info['claim_count'],
                 
                 # Pharmacy information
@@ -513,7 +520,7 @@ class SidecarAPICollector:
         """Initialize CSV file with headers"""
         headers = [
             'timestamp', 'state', 'zip_code', 'city', 'lat', 'lng',
-            'procedure_code', 'drug_name', 'dosage_form', 'total_benefit_amount_orig', 'claim_count_orig',
+            'procedure_code', 'drug_name', 'dosage_form', 'claim_count_orig',
             'pharmacy_name', 'pharmacy_phone', 'pharmacy_address', 'pharmacy_distance', 'pharmacy_rate', 'price_fairness',
             'provider_price', 'estimated_member_responsibility', 'earned_benefit', 'applied_to_deductible', 
             'savings', 'bill_over_benefit_amount', 'facility_benefit_amount', 'gsn', 'ndc', 'qty'

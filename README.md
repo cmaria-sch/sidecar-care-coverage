@@ -211,6 +211,32 @@ pip install -r requirements.txt
 **API Rate Limiting**
 The script automatically handles rate limiting with exponential backoff.
 
+**Test Mode Returns Empty Results**
+
+If test mode completes immediately without making API calls and produces an empty CSV file (only headers), the issue is likely a leftover progress file:
+
+```bash
+# Check if test progress file exists
+ls -la results/progress_test.json
+
+# If it exists, remove it to run a fresh test
+rm results/progress_test.json
+
+# Then run test mode again
+./run_collection.sh --test
+```
+
+The progress file tracks completed combinations to enable resuming interrupted runs. However, if you run test mode multiple times, the progress file from the previous run will cause all combinations to be skipped as "already completed."
+
+**Full Mode Progress File**
+
+Similarly, for full collection mode, the progress file is `results/progress.json`. If you need to restart a full collection from scratch:
+
+```bash
+# Remove full progress file (WARNING: This will restart the entire collection)
+rm results/progress.json
+```
+
 ### Logs and Debugging
 
 - Check `logs/sidecar_api_collection.log` for detailed execution logs

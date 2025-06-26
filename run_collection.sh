@@ -18,13 +18,22 @@ grab_fresh_token() {
     echo "🔄 Session token expired or invalid. Grabbing fresh token..."
     if ./grab_token.sh > /tmp/token_output.txt 2>&1; then
         echo "✅ Successfully obtained fresh token"
-        # Source the token into current environment
-        source <(grep "^export" /tmp/token_output.txt 2>/dev/null || echo "")
-        # Also try to extract from the output directly
-        TOKEN=$(grep "TOKEN=" /tmp/token_output.txt | cut -d'=' -f2)
-        MEMBERUUID=$(grep "MEMBERUUID=" /tmp/token_output.txt | cut -d'=' -f2)
+        # Extract token and memberUUID from the output, cleaning any extra whitespace/quotes
+        TOKEN=$(grep "TOKEN=" /tmp/token_output.txt | cut -d'=' -f2 | tr -d '\n\r"'"'" | xargs)
+        MEMBERUUID=$(grep "MEMBERUUID=" /tmp/token_output.txt | cut -d'=' -f2 | tr -d '\n\r"'"'" | xargs)
+        
+        # Export cleaned values
         export TOKEN="$TOKEN"
         export MEMBERUUID="$MEMBERUUID"
+        
+        # Verify we got valid values
+        if [ -z "$TOKEN" ] || [ -z "$MEMBERUUID" ]; then
+            echo "❌ Failed to extract TOKEN or MEMBERUUID from output"
+            cat /tmp/token_output.txt
+            rm -f /tmp/token_output.txt
+            return 1
+        fi
+        
         rm -f /tmp/token_output.txt
         return 0
     else
