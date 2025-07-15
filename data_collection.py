@@ -92,7 +92,8 @@ class SidecarAPICollector:
         
         # Failure tracking for auto-stop functionality
         self.failed_combinations = []
-        self.max_failures = 10
+        self.consecutive_failures = 0
+        self.max_consecutive_failures = 10
         self.auto_stop_triggered = False
         
         # Geocoding cache - now in results folder
@@ -735,8 +736,9 @@ class SidecarAPICollector:
                 
                 # Check if auto-stop was triggered
                 if self.auto_stop_triggered:
-                    logger.error("🛑 AUTO-STOP: Collection halted due to too many API failures")
-                    logger.error(f"📊 Failed combinations: {len(self.failed_combinations)}")
+                    logger.error("🛑 AUTO-STOP: Collection halted due to too many consecutive API failures")
+                    logger.error(f"📊 Total failed combinations: {len(self.failed_combinations)}")
+                    logger.error(f"📊 Consecutive failures before stop: {self.consecutive_failures}")
                     logger.error("💡 Please check API status and restart manually when ready")
                     return
                 
@@ -750,6 +752,9 @@ class SidecarAPICollector:
                 )
                 
                 if api_response:
+                    # Reset consecutive failures on success
+                    self.consecutive_failures = 0
+                    
                     # Extract and save data
                     rows = self.extract_pharmacy_data(api_response, drug, zip_info)
                     if rows:
@@ -760,15 +765,18 @@ class SidecarAPICollector:
                 else:
                     # Track failed combination
                     self.failed_combinations.append(combination_key)
-                    logger.error(f"❌ Failed to get data for {drug['drug_name']} in {zip_info['zip']} (Failure #{len(self.failed_combinations)})")
+                    self.consecutive_failures += 1
+                    logger.error(f"❌ Failed to get data for {drug['drug_name']} in {zip_info['zip']} (Total failures: {len(self.failed_combinations)}, Consecutive: {self.consecutive_failures})")
                     
-                    # Check if we've hit the failure limit
-                    if len(self.failed_combinations) >= self.max_failures:
+                    # Check if we've hit the consecutive failure limit
+                    if self.consecutive_failures >= self.max_consecutive_failures:
                         self.auto_stop_triggered = True
-                        logger.error(f"🚨 CRITICAL: {len(self.failed_combinations)} API failures detected!")
+                        logger.error(f"🚨 CRITICAL: {self.consecutive_failures} consecutive API failures detected!")
                         logger.error("🛑 AUTO-STOP TRIGGERED: Too many consecutive failures")
-                        logger.error("📋 Failed combinations:")
-                        for i, failed_combo in enumerate(self.failed_combinations, 1):
+                        logger.error("📋 Recent failed combinations:")
+                        # Show last 10 failed combinations
+                        recent_failures = self.failed_combinations[-self.max_consecutive_failures:]
+                        for i, failed_combo in enumerate(recent_failures, 1):
                             logger.error(f"   {i}. {failed_combo}")
                         logger.error("💡 Collection will stop after updating progress")
                         logger.error("🔧 Please check API status, network, or authentication")
@@ -785,8 +793,9 @@ class SidecarAPICollector:
                 time.sleep(self.request_delay)
         
         if self.auto_stop_triggered:
-            logger.error("🛑 Collection stopped due to auto-stop trigger")
+            logger.error("🛑 Collection stopped due to consecutive failure auto-stop trigger")
             logger.error(f"📊 Total failures: {len(self.failed_combinations)}")
+            logger.error(f"📊 Consecutive failures: {self.consecutive_failures}")
             logger.error(f"📁 Output file: {self.output_file}")
             logger.error(f"🔄 Progress saved: {processed_count} combinations processed")
         elif self.test_mode:
