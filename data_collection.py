@@ -96,8 +96,8 @@ class SidecarAPICollector:
         self.max_consecutive_failures = 10
         self.auto_stop_triggered = False
         
-        # Geocoding cache - now in results folder
-        self.geocoding_cache_file = 'results/geocoding_cache.json'
+        # Geocoding cache - in root folder
+        self.geocoding_cache_file = 'geocoding_cache.json'
         self.geocoding_cache = self.load_geocoding_cache()
         
         # UUID cache
@@ -110,10 +110,18 @@ class SidecarAPICollector:
         if os.path.exists(self.geocoding_cache_file):
             try:
                 with open(self.geocoding_cache_file, 'r') as f:
-                    return json.load(f)
+                    cache = json.load(f)
+                    logger.info(f"✅ Loaded geocoding cache with {len(cache)} entries from {self.geocoding_cache_file}")
+                    return cache
             except Exception as e:
-                logger.warning(f"Could not load geocoding cache: {e}")
-        return {}
+                logger.warning(f"❌ Could not load geocoding cache from {self.geocoding_cache_file}: {e}")
+                logger.warning("⚠️  Starting with empty cache - will geocode all zipcodes via API")
+                return {}
+        else:
+            logger.warning(f"⚠️  Geocoding cache file not found: {self.geocoding_cache_file}")
+            logger.warning("⚠️  Starting with empty cache - will geocode all zipcodes via API")
+            logger.warning("💡 This will take ~12+ minutes for 2,500+ zipcodes")
+            return {}
     
     def save_geocoding_cache(self):
         """Save geocoding cache to file"""
@@ -258,6 +266,14 @@ class SidecarAPICollector:
         
         if self.test_mode:
             logger.info("🧪 TEST MODE: Processing only 2 zip codes per state")
+        
+        # Check geocoding cache status
+        cache_size = len(self.geocoding_cache)
+        if cache_size == 0:
+            logger.warning("⚠️  No geocoding cache found - will use API for all zipcodes")
+            logger.warning("⏱️  Estimated time: ~12+ minutes for full geocoding")
+        else:
+            logger.info(f"📍 Geocoding cache loaded: {cache_size} entries available")
         
         for state, filename in state_files.items():
             if not os.path.exists(filename):
@@ -620,16 +636,151 @@ class SidecarAPICollector:
         return None
     
     def extract_pharmacy_data(self, api_response: Dict, drug_info: Dict, zip_info: Dict) -> List[Dict]:
-        """Extract pharmacy data from API response"""
+        """Extract comprehensive pharmacy data from API response"""
         rows = []
         
         if not api_response or 'pharmacies' not in api_response:
             return rows
         
-        # Extract facility benefit amount from top-level API response
+        # Extract top-level drug information
+        drug_title = api_response.get('title', '')
+        drug_name = api_response.get('name', '')
         facility_benefit_amount = api_response.get('facilityBenefitAmount', 0)
+        non_facility_benefit_amount = api_response.get('nonFacilityBenefitAmount', 0)
+        facility_should_cost = api_response.get('facilityShouldCost', 0)
+        non_facility_should_cost = api_response.get('nonFacilityShouldCost', 0)
+        facility_addon_should_cost = api_response.get('facilityAddOnShouldCost', 0)
+        non_facility_addon_should_cost = api_response.get('nonFacilityAddOnShouldCost', 0)
+        facility_addon_benefit_amount = api_response.get('facilityAddOnBenefitAmount', 0)
+        non_facility_addon_benefit_amount = api_response.get('nonFacilityAddOnBenefitAmount', 0)
+        
+        # Extract drug description details
+        description_data = api_response.get('description', {})
+        drug_description = description_data.get('description', '')
+        brand_name = description_data.get('brandName', '')
+        generic_name = description_data.get('genericName', '')
+        admin_instructions = description_data.get('admin', '')
+        contraindications = description_data.get('contra', '')
+        side_effects = description_data.get('side', '')
+        interactions = description_data.get('interaction', '')
+        monitoring_instructions = description_data.get('monitor', '')
+        missed_dose_instructions = description_data.get('missed', '')
+        
+        # Extract form options
+        form_options = []
+        for form in api_response.get('form', []):
+            form_data = {
+                'label': form.get('label', ''),
+                'selected': form.get('selected', False),
+                'gsn': form.get('queryMap', {}).get('gsn', ''),
+                'strength': form.get('queryMap', {}).get('strength', ''),
+                'qty': form.get('queryMap', {}).get('qty', ''),
+                'branded_or_generic_id': form.get('queryMap', {}).get('brandedOrGenericId', '')
+            }
+            form_options.append(form_data)
+        
+        # Extract dosage options
+        dosage_options = []
+        for dosage in api_response.get('dosage', []):
+            dosage_data = {
+                'label': dosage.get('label', ''),
+                'selected': dosage.get('selected', False),
+                'gsn': dosage.get('queryMap', {}).get('gsn', ''),
+                'strength': dosage.get('queryMap', {}).get('strength', ''),
+                'form': dosage.get('queryMap', {}).get('form', ''),
+                'qty': dosage.get('queryMap', {}).get('qty', ''),
+                'branded_or_generic_id': dosage.get('queryMap', {}).get('brandedOrGenericId', '')
+            }
+            dosage_options.append(dosage_data)
+        
+        # Extract quantity options
+        quantity_options = []
+        for quantity in api_response.get('quantity', []):
+            quantity_data = {
+                'label': quantity.get('label', ''),
+                'selected': quantity.get('selected', False),
+                'gsn': quantity.get('queryMap', {}).get('gsn', ''),
+                'qty': quantity.get('queryMap', {}).get('qty', ''),
+                'branded_or_generic_id': quantity.get('queryMap', {}).get('brandedOrGenericId', '')
+            }
+            quantity_options.append(quantity_data)
+        
+        # Extract brand options
+        brand_options = []
+        for brand in api_response.get('brand', []):
+            brand_data = {
+                'label': brand.get('label', ''),
+                'selected': brand.get('selected', False),
+                'branded_or_generic_id': brand.get('queryMap', {}).get('brandedOrGenericId', ''),
+                'drug_name': brand.get('queryMap', {}).get('drugName', ''),
+                'drug_detail_customized': brand.get('queryMap', {}).get('drugDetailCustomized', '')
+            }
+            brand_options.append(brand_data)
+        
+        # Extract member information
+        member_info = api_response.get('memberInfo', {})
+        member_uuid = member_info.get('uuid', '')
+        member_zip_code = member_info.get('zipCode', '')
+        member_prescriptions_covered = member_info.get('prescriptionsCovered', False)
+        member_medical_area_factor = member_info.get('medicalAreaFactor', 0)
+        member_policy_uuid = member_info.get('policyUuid', '')
+        member_policy_coverage_status = member_info.get('policyCoverageStatus', '')
+        member_insurance_filing_uuid = member_info.get('insuranceFilingUuid', '')
+        member_maternity_start_date = member_info.get('maternityStartDate', '')
+        member_maternity_care_covered = member_info.get('maternityCareCovered', False)
+        member_skip_deductible_eligible = member_info.get('skipDeductibleCareEligible', False)
+        member_insurance_product = member_info.get('insuranceProduct', '')
+        member_rating_area = member_info.get('ratingArea', '')
+        member_zero_reimbursement_policy_status = member_info.get('zeroReimbursementPolicyStatus', False)
+        
+        # Extract additional metadata
+        selected_ndc = api_response.get('selectedNdc', '')
+        prescriptions_covered = api_response.get('prescriptionsCovered', False)
+        category_slug = api_response.get('categorySlug', '')
+        generic_or_branded_id = api_response.get('genericOrBrandedId', '')
+        pregnancy_complication = api_response.get('pregnancyComplication', False)
+        drug_coverage_required = api_response.get('drugCoverageRequired', False)
+        maternity_covered = api_response.get('maternityCovered', False)
+        preventive_type = api_response.get('preventiveType', '')
+        otc_drug = api_response.get('otcDrug', False)
+        is_cover_at_cost = api_response.get('isCoverAtCost', False)
+        is_deductible_skipped = api_response.get('isDeductibleSkipped', False)
+        is_maternity_eligible = api_response.get('isMaternityEligible', False)
+        care_status = api_response.get('careStatus', '')
+        conditionally_covered_type = api_response.get('conditionallyCoveredType', '')
+        ignore_rating_area_factor = api_response.get('ignoreRatingAreaFactor', False)
+        monitoring_id = api_response.get('monitoringId', '')
+        category = api_response.get('category', '')
+        
+        # Convert arrays to JSON strings for CSV storage
+        form_options_json = json.dumps(form_options)
+        dosage_options_json = json.dumps(dosage_options)
+        quantity_options_json = json.dumps(quantity_options)
+        brand_options_json = json.dumps(brand_options)
             
         for pharmacy in api_response.get('pharmacies', []):
+            # Extract pharmacy address details
+            pharmacy_address = pharmacy.get('address', {})
+            pharmacy_street = pharmacy_address.get('street', '')
+            pharmacy_city = pharmacy_address.get('city', '')
+            pharmacy_state = pharmacy_address.get('state', '')
+            pharmacy_zip = pharmacy_address.get('zip', '')
+            pharmacy_lon = pharmacy_address.get('lon', 0)
+            pharmacy_lat = pharmacy_address.get('lat', 0)
+            
+            # Extract hours of operation
+            hours_of_operation = []
+            for hours in pharmacy.get('hoursOfOperation', []):
+                hours_data = {
+                    'day': hours.get('day', ''),
+                    'hours': hours.get('hours', '')
+                }
+                hours_of_operation.append(hours_data)
+            hours_of_operation_json = json.dumps(hours_of_operation)
+            
+            # Extract care estimate result details
+            care_estimate = pharmacy.get('careEstimateResult', {})
+            
             row = {
                 'timestamp': datetime.now().isoformat(),
                 'state': zip_info['state'],
@@ -638,46 +789,157 @@ class SidecarAPICollector:
                 'lat': zip_info['lat'],
                 'lng': zip_info['lng'],
                 
-                # Drug information
+                # Original drug information
                 'procedure_code': drug_info['procedure_code'],
                 'drug_name': drug_info['drug_name'],
                 'dosage_form': drug_info['dosage_form'],
                 'claim_count_orig': drug_info['claim_count'],
                 
+                # Enhanced drug information from API
+                'api_drug_title': drug_title,
+                'api_drug_name': drug_name,
+                'brand_name': brand_name,
+                'generic_name': generic_name,
+                'selected_ndc': selected_ndc,
+                'generic_or_branded_id': generic_or_branded_id,
+                
+                # Drug description details
+                'drug_description': drug_description,
+                'admin_instructions': admin_instructions,
+                'contraindications': contraindications,
+                'side_effects': side_effects,
+                'interactions': interactions,
+                'monitoring_instructions': monitoring_instructions,
+                'missed_dose_instructions': missed_dose_instructions,
+                
+                # Cost and benefit information
+                'facility_benefit_amount': facility_benefit_amount,
+                'non_facility_benefit_amount': non_facility_benefit_amount,
+                'facility_should_cost': facility_should_cost,
+                'non_facility_should_cost': non_facility_should_cost,
+                'facility_addon_should_cost': facility_addon_should_cost,
+                'non_facility_addon_should_cost': non_facility_addon_should_cost,
+                'facility_addon_benefit_amount': facility_addon_benefit_amount,
+                'non_facility_addon_benefit_amount': non_facility_addon_benefit_amount,
+                
+                # Drug options (as JSON strings)
+                'form_options': form_options_json,
+                'dosage_options': dosage_options_json,
+                'quantity_options': quantity_options_json,
+                'brand_options': brand_options_json,
+                
+                # Member information
+                'member_uuid': member_uuid,
+                'member_zip_code': member_zip_code,
+                'member_prescriptions_covered': member_prescriptions_covered,
+                'member_medical_area_factor': member_medical_area_factor,
+                'member_policy_uuid': member_policy_uuid,
+                'member_policy_coverage_status': member_policy_coverage_status,
+                'member_insurance_filing_uuid': member_insurance_filing_uuid,
+                'member_maternity_start_date': member_maternity_start_date,
+                'member_maternity_care_covered': member_maternity_care_covered,
+                'member_skip_deductible_eligible': member_skip_deductible_eligible,
+                'member_insurance_product': member_insurance_product,
+                'member_rating_area': member_rating_area,
+                'member_zero_reimbursement_policy_status': member_zero_reimbursement_policy_status,
+                
+                # Coverage metadata
+                'prescriptions_covered': prescriptions_covered,
+                'category_slug': category_slug,
+                'pregnancy_complication': pregnancy_complication,
+                'drug_coverage_required': drug_coverage_required,
+                'maternity_covered': maternity_covered,
+                'preventive_type': preventive_type,
+                'otc_drug': otc_drug,
+                'is_cover_at_cost': is_cover_at_cost,
+                'is_deductible_skipped': is_deductible_skipped,
+                'is_maternity_eligible': is_maternity_eligible,
+                'care_status': care_status,
+                'conditionally_covered_type': conditionally_covered_type,
+                'ignore_rating_area_factor': ignore_rating_area_factor,
+                'monitoring_id': monitoring_id,
+                'category': category,
+                
                 # Pharmacy information
                 'pharmacy_name': pharmacy.get('name', ''),
                 'pharmacy_phone': pharmacy.get('phone', ''),
-                'pharmacy_address': f"{pharmacy.get('address', {}).get('street', '')}, {pharmacy.get('address', {}).get('city', '')}, {pharmacy.get('address', {}).get('state', '')} {pharmacy.get('address', {}).get('zip', '')}",
+                'pharmacy_street': pharmacy_street,
+                'pharmacy_city': pharmacy_city,
+                'pharmacy_state': pharmacy_state,
+                'pharmacy_zip': pharmacy_zip,
+                'pharmacy_lon': pharmacy_lon,
+                'pharmacy_lat': pharmacy_lat,
                 'pharmacy_distance': pharmacy.get('distance', 0),
                 'pharmacy_rate': pharmacy.get('pharmacyRate', 0),
                 'price_fairness': pharmacy.get('priceFairness', ''),
+                'pharmacy_image': pharmacy.get('image', ''),
+                'hours_of_operation': hours_of_operation_json,
                 
-                # Benefit information
-                'provider_price': pharmacy.get('careEstimateResult', {}).get('providerPrice', 0),
-                'estimated_member_responsibility': pharmacy.get('careEstimateResult', {}).get('estimatedMemberResponsibility', 0),
-                'earned_benefit': pharmacy.get('careEstimateResult', {}).get('earnedBenefit', 0),
-                'applied_to_deductible': pharmacy.get('careEstimateResult', {}).get('appliedToDeductible', 0),
-                'savings': pharmacy.get('careEstimateResult', {}).get('savings', 0),
-                'bill_over_benefit_amount': pharmacy.get('careEstimateResult', {}).get('billOverBenefitAmount', 0),
-                'facility_benefit_amount': facility_benefit_amount,
+                # Pharmacy-specific drug details
+                'pharmacy_gsn': pharmacy.get('gsn', ''),
+                'pharmacy_ndc': pharmacy.get('ndc', ''),
+                'pharmacy_qty': pharmacy.get('qty', 0),
                 
-                # Additional fields from API response
-                'gsn': pharmacy.get('gsn', ''),
-                'ndc': pharmacy.get('ndc', ''),
-                'qty': pharmacy.get('qty', 0),
+                # Care estimate results
+                'provider_price': care_estimate.get('providerPrice', 0),
+                'estimated_member_responsibility': care_estimate.get('estimatedMemberResponsibility', 0),
+                'earned_benefit': care_estimate.get('earnedBenefit', 0),
+                'applied_to_deductible': care_estimate.get('appliedToDeductible', 0),
+                'savings': care_estimate.get('savings', 0),
+                'bill_over_benefit_amount': care_estimate.get('billOverBenefitAmount', 0),
             }
             rows.append(row)
             
         return rows
     
     def initialize_csv(self) -> List[str]:
-        """Initialize CSV file with headers"""
+        """Initialize CSV file with comprehensive headers"""
         headers = [
+            # Basic location and timing info
             'timestamp', 'state', 'zip_code', 'city', 'lat', 'lng',
+            
+            # Original drug information
             'procedure_code', 'drug_name', 'dosage_form', 'claim_count_orig',
-            'pharmacy_name', 'pharmacy_phone', 'pharmacy_address', 'pharmacy_distance', 'pharmacy_rate', 'price_fairness',
-            'provider_price', 'estimated_member_responsibility', 'earned_benefit', 'applied_to_deductible', 
-            'savings', 'bill_over_benefit_amount', 'facility_benefit_amount', 'gsn', 'ndc', 'qty'
+            
+            # Enhanced drug information from API
+            'api_drug_title', 'api_drug_name', 'brand_name', 'generic_name', 
+            'selected_ndc', 'generic_or_branded_id',
+            
+            # Drug description details
+            'drug_description', 'admin_instructions', 'contraindications', 
+            'side_effects', 'interactions', 'monitoring_instructions', 'missed_dose_instructions',
+            
+            # Cost and benefit information
+            'facility_benefit_amount', 'non_facility_benefit_amount', 'facility_should_cost', 
+            'non_facility_should_cost', 'facility_addon_should_cost', 'non_facility_addon_should_cost',
+            'facility_addon_benefit_amount', 'non_facility_addon_benefit_amount',
+            
+            # Drug options (as JSON strings)
+            'form_options', 'dosage_options', 'quantity_options', 'brand_options',
+            
+            # Member information
+            'member_uuid', 'member_zip_code', 'member_prescriptions_covered', 'member_medical_area_factor',
+            'member_policy_uuid', 'member_policy_coverage_status', 'member_insurance_filing_uuid',
+            'member_maternity_start_date', 'member_maternity_care_covered', 'member_skip_deductible_eligible',
+            'member_insurance_product', 'member_rating_area', 'member_zero_reimbursement_policy_status',
+            
+            # Coverage metadata
+            'prescriptions_covered', 'category_slug', 'pregnancy_complication', 'drug_coverage_required',
+            'maternity_covered', 'preventive_type', 'otc_drug', 'is_cover_at_cost', 'is_deductible_skipped',
+            'is_maternity_eligible', 'care_status', 'conditionally_covered_type', 'ignore_rating_area_factor',
+            'monitoring_id', 'category',
+            
+            # Pharmacy information
+            'pharmacy_name', 'pharmacy_phone', 'pharmacy_street', 'pharmacy_city', 'pharmacy_state',
+            'pharmacy_zip', 'pharmacy_lon', 'pharmacy_lat', 'pharmacy_distance', 'pharmacy_rate',
+            'price_fairness', 'pharmacy_image', 'hours_of_operation',
+            
+            # Pharmacy-specific drug details
+            'pharmacy_gsn', 'pharmacy_ndc', 'pharmacy_qty',
+            
+            # Care estimate results
+            'provider_price', 'estimated_member_responsibility', 'earned_benefit', 'applied_to_deductible',
+            'savings', 'bill_over_benefit_amount'
         ]
         
         # Create CSV file with headers if it doesn't exist
