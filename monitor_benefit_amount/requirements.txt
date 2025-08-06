@@ -1,0 +1,21 @@
+# Core dependencies for comprehensive benefit comparison
+pandas>=2.0.0
+snowflake-connector-python>=3.16.0
+boto3>=1.34.0
+botocore>=1.34.0
+requests>=2.31.0
+elasticsearch>=8.0.0
+
+# AWS and authentication
+aws-requests-auth>=0.4.3
+
+# Utility libraries
+python-dateutil>=2.8.0
+pytz>=2023.3
+urllib3>=1.26.0
+
+# Optional: for better performance
+numpy>=1.24.0
+
+# Development/debugging (optional)
+python-dotenv>=1.0.0
