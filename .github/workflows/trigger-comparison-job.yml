@@ -1,5 +1,5 @@
 # .github/workflows/prod-deploy.yml
-name: Production Deploy
+name: Trigger Comparison Job
 
 on:
   workflow_dispatch:
@@ -12,135 +12,75 @@ on:
           - Rx
           - Non-Rx
         default: 'Non-Rx'
-      deployment_reason:
-        description: 'Reason for this deployment'
-        required: false
-        type: string
-        default: 'Manual production deployment'
 
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: sidecar-data-monitor-benefit-amount
-  AWS_ACCOUNT_ID: "359879675385"
   BATCH_JOB_NAME: sidecar_data_monitor_benefit_amount
 
 jobs:
-  validate-image:
-    name: Validate Image
+  build-and-deploy:
+    name: Build Image and Deploy
     runs-on: ubuntu-latest
-    outputs:
-      image_exists: ${{ steps.check_image.outputs.exists }}
-      image_uri: ${{ steps.set_vars.outputs.image_uri }}
-      analysis_type: ${{ steps.set_vars.outputs.analysis_type }}
-      deployment_reason: ${{ steps.set_vars.outputs.deployment_reason }}
+    environment: production
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set variables
         id: set_vars
         run: |
           ANALYSIS_TYPE="${{ github.event.inputs.analysis_type }}"
-          DEPLOYMENT_REASON="${{ github.event.inputs.deployment_reason }}"
-          IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"
           
           echo "analysis_type=${ANALYSIS_TYPE}" >> $GITHUB_OUTPUT
-          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
-          echo "deployment_reason=${DEPLOYMENT_REASON}" >> $GITHUB_OUTPUT
           
           echo "Analysis Type: ${ANALYSIS_TYPE}"
-          echo "Image URI: ${IMAGE_URI}"
 
-      - name: Configure AWS credentials
+      - name: Configure DEV AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.DEV_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEV_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check if latest image exists in ECR
-        id: check_image
-        run: |
-          IMAGE_URI=${{ steps.set_vars.outputs.image_uri }}
-          
-          if aws ecr describe-images \
-              --repository-name ${{ env.ECR_REPOSITORY }} \
-              --image-ids imageTag=latest >/dev/null 2>&1; then
-            echo "Latest image exists: ${IMAGE_URI}"
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "ERROR: Latest image not found: ${IMAGE_URI}"
-            echo "exists=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: validate-image
-    if: needs.validate-image.outputs.image_exists == 'true'
-
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to ECR
+      - name: Login to DEV ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Run security scan
+      - name: Build and push Docker image to DEV ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          IMAGE_URI=${{ needs.validate-image.outputs.image_uri }}
-          echo "Running security scan on ${IMAGE_URI}"
-          docker pull ${IMAGE_URI}
-          echo "Security scan completed"
+          echo "Building Docker image from monitor_benefit_amount folder..."
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest ./monitor_benefit_amount
+          
+          echo "Pushing image to DEV ECR..."
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+          
+          echo "Image pushed successfully to DEV ECR: $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
 
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [validate-image, security-scan]
-    environment: production
-
-    steps:
-      - name: Configure AWS credentials
+      - name: Configure PROD AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Validate Batch job definition
-        run: |
-          BATCH_JOB_NAME="${{ env.BATCH_JOB_NAME }}"
-          
-          JOB_DEF_ARN=$(aws batch describe-job-definitions \
-            --job-definition-name ${BATCH_JOB_NAME} \
-            --status ACTIVE \
-            --query 'jobDefinitions[0].jobDefinitionArn' \
-            --output text)
-          
-          if [ "$JOB_DEF_ARN" != "None" ] && [ "$JOB_DEF_ARN" != "" ]; then
-            echo "Job definition found: ${BATCH_JOB_NAME}"
-          else
-            echo "ERROR: Job definition not found: ${BATCH_JOB_NAME}"
-            exit 1
-          fi
 
       - name: Submit Batch job
         id: batch_job
         run: |
-          ANALYSIS_TYPE=${{ needs.validate-image.outputs.analysis_type }}
+          ANALYSIS_TYPE=${{ steps.set_vars.outputs.analysis_type }}
           BATCH_JOB_NAME="${{ env.BATCH_JOB_NAME }}"
           
           echo "Submitting Batch job: ${BATCH_JOB_NAME}"
           echo "Analysis type: ${ANALYSIS_TYPE}"
           
           JOB_ID=$(aws batch submit-job \
-            --job-name "prod-${ANALYSIS_TYPE,,}-$(date +%Y%m%d-%H%M%S)" \
-            --job-queue production-job-queue \
+            --job-name sidecar_data_monitor_benefit_amount \
+            --job-queue de_operational_env_priority_1 \
             --job-definition ${BATCH_JOB_NAME} \
-            --parameters "analysisType=${ANALYSIS_TYPE}" \
+            --parameters "ENVIRONMENT=prod" \
             --query 'jobId' \
             --output text)
           
