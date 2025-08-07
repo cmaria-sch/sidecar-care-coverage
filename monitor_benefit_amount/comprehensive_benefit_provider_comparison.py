@@ -41,7 +41,7 @@ import functools
 
 # Import our custom modules
 from enhanced_benefit_calculator import EnhancedBenefitCalculator, EnhancedBenefitResult
-from ProviderPriceInformation import ProviderPriceInformation
+from provider_price_information import ProviderPriceInformation
 
 # Configure logging
 logging.basicConfig(
@@ -138,6 +138,8 @@ class ComparisonResult:
     provider_name: str = ""
     care_category: str = ""
     execution_id: str = ""
+    result_type: str = "lower-benefit-amount"  # 'lower-benefit-amount' or 'no-provider-price-found'
+    provider_count_with_no_price: int = 0
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for CSV export"""
@@ -154,7 +156,9 @@ class ComparisonResult:
             'rx_benefit_amount': self.rx_benefit_amount,
             'provider_name': self.provider_name,
             'care_category': self.care_category,
-            'execution_id': self.execution_id
+            'execution_id': self.execution_id,
+            'result_type': self.result_type,
+            'provider_count_with_no_price': self.provider_count_with_no_price
         }
     
     def to_snowflake_record(self) -> Dict:
@@ -179,7 +183,9 @@ class ComparisonResult:
             'EXCEEDS_FACILITY': exceeds_facility,
             'EXCEEDS_NON_FACILITY': exceeds_non_facility, 
             'PRICE_VS_FACILITY_DIFF': self.provider_price - self.facility_benefit_amount if exceeds_facility else 0,
-            'PRICE_VS_NON_FACILITY_DIFF': self.provider_price - self.non_facility_benefit_amount if exceeds_non_facility else 0
+            'PRICE_VS_NON_FACILITY_DIFF': self.provider_price - self.non_facility_benefit_amount if exceeds_non_facility else 0,
+            'RESULT_TYPE': self.result_type,
+            'PROVIDER_COUNT_WITH_NO_PRICE': self.provider_count_with_no_price
         }
 
 class ComprehensiveBenefitProviderComparison:
@@ -187,7 +193,7 @@ class ComprehensiveBenefitProviderComparison:
     Main class for performing comprehensive benefit vs provider price comparison
     """
     
-    def __init__(self, data_dir: str = "data", batch_size: int = 200):
+    def __init__(self, data_dir: str = "input_data", batch_size: int = 200):
         """
         Initialize the comparison system
         
@@ -488,8 +494,31 @@ class ComprehensiveBenefitProviderComparison:
             logger.debug(f"Benefit calculation succeeded for {sidecar_code}")
             return result
         except Exception as e:
-            logger.info(f"Benefit calculation failed for {sidecar_code}/{insurance_filing_uuid}/{zipcode}: {e}")
-            return None
+            error_str = str(e).lower()
+            
+            # Check if this is a connection-related error that should trigger retry
+            is_connection_error = any(keyword in error_str for keyword in [
+                'snowflake',
+                'connection',
+                'authentication', 
+                'timeout',
+                'network',
+                'ip/token',  # The specific IP access error
+                'is not allowed to access',
+                'socket',
+                'ssl',
+                'certificate'
+            ])
+            
+            if is_connection_error:
+                # Re-raise connection errors so retry decorator can handle them
+                logger.warning(f"Connection error in benefit calculation for {sidecar_code}/{insurance_filing_uuid}/{zipcode}: {e}")
+                logger.warning("Re-raising for retry/refresh mechanism...")
+                raise e
+            else:
+                # Handle non-connection errors gracefully (data issues, validation errors, etc.)
+                logger.info(f"Non-connection error in benefit calculation for {sidecar_code}/{insurance_filing_uuid}/{zipcode}: {e}")
+                return None
 
 
     def _get_doctor_connection(self):
@@ -770,7 +799,7 @@ class ComprehensiveBenefitProviderComparison:
             self._zipcode_coordinates_cache[zipcode] = (None, None)
             return None, None
 
-    def _get_provider_prices(self, sidecar_code: str, rating_area: str, zipcode: str, specialties: Optional[List[str]] = None) -> List[Dict]:
+    def _get_provider_prices(self, sidecar_code: str, rating_area: str, zipcode: str, specialties: Optional[List[str]] = None) -> Tuple[List[Dict], int]:
         """
         Get provider prices from Elasticsearch for given sidecar code with geo filtering
         
@@ -780,7 +809,7 @@ class ComprehensiveBenefitProviderComparison:
             zipcode: ZIP code for geo coordinates
         
         Returns:
-            List of provider documents with pricing information
+            Tuple of (filtered_providers_list, original_provider_count_before_filtering)
         """
         try:
             # Get radius for this rating area
@@ -792,7 +821,7 @@ class ComprehensiveBenefitProviderComparison:
             # Get providers with geo filtering if coordinates available
             if lat is not None and lon is not None:
                 logger.debug(f"Searching providers with geo filter: lat={lat}, lon={lon}, radius={radius}, specialties={specialties}")
-                providers = self.provider_service.getProviders(
+                providers, original_provider_count = self.provider_service.getProviders(
                     sidecar_code=sidecar_code,
                     specialties=specialties,
                     lat=lat,
@@ -802,7 +831,7 @@ class ComprehensiveBenefitProviderComparison:
                 )
             else:
                 logger.debug(f"Searching providers without geo filter (no coordinates for zipcode {zipcode}), specialties={specialties}")
-                providers = self.provider_service.getProviders(
+                providers, original_provider_count = self.provider_service.getProviders(
                     sidecar_code=sidecar_code, 
                     specialties=specialties,
                     zipcode=zipcode, 
@@ -841,6 +870,7 @@ class ComprehensiveBenefitProviderComparison:
             #                 'sidecar_code': care_rates.get('sidecarCode', '')
             #             }
             #             providers_with_prices.append(provider_info)
+            
             # Keep all providers from Python implementation - size limiting will be done before comparison
             limited_providers = providers[:25]  # Limit to top 25 providers for comparison
 
@@ -889,11 +919,11 @@ class ComprehensiveBenefitProviderComparison:
 
                 clean_providers.append(clean_provider)
             
-            return clean_providers
+            return clean_providers, original_provider_count
             
         except Exception as e:
             logger.debug(f"Provider price lookup failed for {sidecar_code}: {e}")
-            return []
+            return [], 0
 
     def _process_combination(self, sidecar_code: str, insurance_filing_uuid: str, zipcode: str, state: str) -> List[ComparisonResult]:
         """
@@ -935,13 +965,63 @@ class ComprehensiveBenefitProviderComparison:
         logger.debug(f"Using rating area {provider_search_rating_area} for provider search radius lookup")
         
         # Get provider prices with rating area for radius lookup
-        provider_prices = self._get_provider_prices(sidecar_code, provider_search_rating_area, zipcode, specialties)
+        provider_prices, original_provider_count = self._get_provider_prices(sidecar_code, provider_search_rating_area, zipcode, specialties)
         
         if not provider_prices:
             logger.info(f"❌ No providers found for {sidecar_code} in {zipcode}")
-            return results  # No providers found
+            
+            # Capture this "no providers found" case according to user requirements
+            no_provider_result = ComparisonResult(
+                sidecar_code=sidecar_code,
+                npi="",  # No NPI since no providers found
+                insurance_filing_uuid=insurance_filing_uuid,
+                zipcode=zipcode,
+                state=state,
+                rating_area=benefit_result.rating_area,
+                provider_price=0.0,  # No price since no providers
+                facility_benefit_amount=benefit_result.facility_benefit_amount,
+                non_facility_benefit_amount=benefit_result.non_facility_benefit_amount,
+                rx_benefit_amount=benefit_result.rx_benefit_amount,
+                provider_name="",  # No provider name since no providers found
+                care_category=benefit_result.care_category,
+                execution_id=self.execution_id,
+                result_type="no-provider-price-found",  # Mark as no provider case
+                provider_count_with_no_price=original_provider_count  # Use original count before price filtering
+            )
+            results.append(no_provider_result)
+            return results
         
         logger.info(f"👩‍⚕️ Found {len(provider_prices)} providers with pricing for {sidecar_code}")
+        
+        # Count providers with no pricing data
+        providers_with_no_price = sum(1 for p in provider_prices if p.get('price', 0) <= 0)
+        providers_with_price = len(provider_prices) - providers_with_no_price
+        
+        logger.info(f"📊 Provider pricing breakdown: {providers_with_price} with price, {providers_with_no_price} with no price")
+        
+        # If all providers have no pricing data, capture as no-provider-price-found
+        if providers_with_no_price > 0 and providers_with_price == 0:
+            logger.info(f"⚠️  All {providers_with_no_price} providers found have no pricing data for {sidecar_code} in {zipcode}")
+            
+            no_price_result = ComparisonResult(
+                sidecar_code=sidecar_code,
+                npi="",  # Multiple providers, no specific NPI
+                insurance_filing_uuid=insurance_filing_uuid,
+                zipcode=zipcode,
+                state=state,
+                rating_area=benefit_result.rating_area,
+                provider_price=0.0,  # No pricing data
+                facility_benefit_amount=benefit_result.facility_benefit_amount,
+                non_facility_benefit_amount=benefit_result.non_facility_benefit_amount,
+                rx_benefit_amount=benefit_result.rx_benefit_amount,
+                provider_name=f"{len(provider_prices)} providers found",  # Indicate multiple providers
+                care_category=benefit_result.care_category,
+                execution_id=self.execution_id,
+                result_type="no-provider-price-found",
+                provider_count_with_no_price=original_provider_count  # Use original count before price filtering
+            )
+            results.append(no_price_result)
+            return results
         
         # Compare each provider price with BOTH facility and non-facility benefit amounts
         # Capture provider if price exceeds either benefit amount
@@ -954,6 +1034,11 @@ class ComprehensiveBenefitProviderComparison:
             provider_price = provider['price']
             provider_npi = provider.get('npi', 'UNKNOWN')
             provider_name = provider.get('name', 'Unknown Provider')
+            
+            # Skip providers with no pricing data for the benefit amount comparison
+            if provider_price <= 0:
+                logger.debug(f"   Provider {i}/{len(provider_prices)} - NPI: {provider_npi} - SKIPPED: No pricing data")
+                continue
             
             # Check if provider price exceeds either facility or non-facility benefit amount
             exceeds_facility = (benefit_result.facility_benefit_amount > 0 and 
@@ -991,7 +1076,9 @@ class ComprehensiveBenefitProviderComparison:
                     rx_benefit_amount=benefit_result.rx_benefit_amount,
                     provider_name=provider_name,
                     care_category=benefit_result.care_category,
-                    execution_id=self.execution_id
+                    execution_id=self.execution_id,
+                    result_type="lower-benefit-amount",  # This is a case where benefit is lower than provider price
+                    provider_count_with_no_price=providers_with_no_price  # Include count of providers with no pricing
                 )
                 results.append(result)
                 captured_providers += 1
@@ -1054,13 +1141,13 @@ class ComprehensiveBenefitProviderComparison:
                 filing_results = []
                 processed_combinations = 0
                 
-                # Process each zipcode for this filing's state  
-                for zip_idx, zipcode in enumerate(zip_codes, 1):
-                    logger.info(f"📍 Processing ZIP code {zip_idx}/{len(zip_codes)}: {zipcode} (state: {filing_state})")
-                    zipcode_results = []
+                # Process each medical code for this filing's state  
+                for code_idx, medical_code in enumerate(self.medical_codes, 1):
+                    logger.info(f"🧬 Processing Medical Code {code_idx}/{len(self.medical_codes)}: {medical_code} (state: {filing_state})")
+                    medical_code_results = []
                     
-                    # For this zipcode, process all medical codes with this specific insurance filing
-                    for medical_code in self.medical_codes:
+                    # For this medical code, process all ZIP codes with this specific insurance filing
+                    for zip_idx, zipcode in enumerate(zip_codes, 1):
                         processed_combinations += 1
                         
                         if processed_combinations % 100 == 0:
@@ -1071,21 +1158,21 @@ class ComprehensiveBenefitProviderComparison:
                             results = self._process_combination(medical_code, insurance_filing, zipcode, filing_state)
                             # *** CRITICAL FIX: Add to batch IMMEDIATELY ***
                             if results:
-                                logger.info(f"🔄 IMMEDIATE BATCH: Adding {len(results)} results for {medical_code}")
+                                logger.info(f"🔄 IMMEDIATE BATCH: Adding {len(results)} results for {medical_code} in {zipcode}")
                                 self._add_to_batch(results)  # ← This will auto-flush when batch_size=1
                                 logger.info(f"📊 Total database records: {self.total_results_written:,}")
 
                                 # Also keep for local tracking and stats
-                                zipcode_results.extend(results)
+                                medical_code_results.extend(results)
                                 self.results_by_state[filing_state].extend(results)
 
                         except Exception as e:
                             logger.error(f"Error processing combination {medical_code}/{insurance_filing}/{zipcode}: {e}")
                             continue
                     
-                    if zipcode_results:
-                        logger.info(f"  ZIP {zipcode}: Found {len(zipcode_results)} providers with price > benefit amount")
-                    filing_results.extend(zipcode_results)
+                    if medical_code_results:
+                        logger.info(f"  Medical Code {medical_code}: Found {len(medical_code_results)} providers with price > benefit amount across {len(zip_codes)} ZIP codes")
+                    filing_results.extend(medical_code_results)
                 
                 # Store and immediately export results for this insurance filing
                 self.results_by_state[filing_state].extend(filing_results)
@@ -1198,14 +1285,15 @@ class ComprehensiveBenefitProviderComparison:
                     EXECUTION_ID, SIDECAR_CODE, NPI, INSURANCE_FILING_UUID, ZIPCODE, STATE,
                     RATING_AREA, PROVIDER_PRICE, FACILITY_BENEFIT_AMOUNT, NON_FACILITY_BENEFIT_AMOUNT,
                     RX_BENEFIT_AMOUNT, PROVIDER_NAME, CARE_CATEGORY, EXCEEDS_FACILITY,
-                    EXCEEDS_NON_FACILITY, PRICE_VS_FACILITY_DIFF, PRICE_VS_NON_FACILITY_DIFF
+                    EXCEEDS_NON_FACILITY, PRICE_VS_FACILITY_DIFF, PRICE_VS_NON_FACILITY_DIFF,
+                    RESULT_TYPE, PROVIDER_COUNT_WITH_NO_PRICE
                 ) VALUES (
                     %(EXECUTION_ID)s, %(SIDECAR_CODE)s, %(NPI)s, %(INSURANCE_FILING_UUID)s,
                     %(ZIPCODE)s, %(STATE)s, %(RATING_AREA)s, %(PROVIDER_PRICE)s,
                     %(FACILITY_BENEFIT_AMOUNT)s, %(NON_FACILITY_BENEFIT_AMOUNT)s,
                     %(RX_BENEFIT_AMOUNT)s, %(PROVIDER_NAME)s, %(CARE_CATEGORY)s,
                     %(EXCEEDS_FACILITY)s, %(EXCEEDS_NON_FACILITY)s, %(PRICE_VS_FACILITY_DIFF)s,
-                    %(PRICE_VS_NON_FACILITY_DIFF)s
+                    %(PRICE_VS_NON_FACILITY_DIFF)s, %(RESULT_TYPE)s, %(PROVIDER_COUNT_WITH_NO_PRICE)s
                 )
                 """
                 # Use records as-is (they include EXECUTION_ID)
@@ -1217,14 +1305,15 @@ class ComprehensiveBenefitProviderComparison:
                     SIDECAR_CODE, NPI, INSURANCE_FILING_UUID, ZIPCODE, STATE,
                     RATING_AREA, PROVIDER_PRICE, FACILITY_BENEFIT_AMOUNT, NON_FACILITY_BENEFIT_AMOUNT,
                     RX_BENEFIT_AMOUNT, PROVIDER_NAME, CARE_CATEGORY, EXCEEDS_FACILITY,
-                    EXCEEDS_NON_FACILITY, PRICE_VS_FACILITY_DIFF, PRICE_VS_NON_FACILITY_DIFF
+                    EXCEEDS_NON_FACILITY, PRICE_VS_FACILITY_DIFF, PRICE_VS_NON_FACILITY_DIFF,
+                    RESULT_TYPE, PROVIDER_COUNT_WITH_NO_PRICE
                 ) VALUES (
                     %(SIDECAR_CODE)s, %(NPI)s, %(INSURANCE_FILING_UUID)s,
                     %(ZIPCODE)s, %(STATE)s, %(RATING_AREA)s, %(PROVIDER_PRICE)s,
                     %(FACILITY_BENEFIT_AMOUNT)s, %(NON_FACILITY_BENEFIT_AMOUNT)s,
                     %(RX_BENEFIT_AMOUNT)s, %(PROVIDER_NAME)s, %(CARE_CATEGORY)s,
                     %(EXCEEDS_FACILITY)s, %(EXCEEDS_NON_FACILITY)s, %(PRICE_VS_FACILITY_DIFF)s,
-                    %(PRICE_VS_NON_FACILITY_DIFF)s
+                    %(PRICE_VS_NON_FACILITY_DIFF)s, %(RESULT_TYPE)s, %(PROVIDER_COUNT_WITH_NO_PRICE)s
                 )
                 """
                 # Remove EXECUTION_ID from records

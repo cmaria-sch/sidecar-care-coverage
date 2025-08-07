@@ -94,7 +94,7 @@ required_files=(
     "input_data/zip_code_oh.csv"
     "$PYTHON_SCRIPT"
     "enhanced_benefit_calculator.py"
-    "ProviderPriceInformation.py"
+    "provider_price_information.py"
     "config.py"
 )
 
@@ -195,7 +195,7 @@ import boto3
 import snowflake.connector
 import requests
 from enhanced_benefit_calculator import EnhancedBenefitCalculator
-from ProviderPriceInformation import ProviderPriceInformation
+from provider_price_information import ProviderPriceInformation
 print('✅ All key imports successful')
 " 2>&1 | tee -a "$LOG_FILE"
     

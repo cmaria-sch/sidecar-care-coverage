@@ -7,7 +7,7 @@ with business logic filtering and sorting based on specialty matches and pricing
 import requests
 import json
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
@@ -954,7 +954,7 @@ class ProviderPriceInformation:
 
     def _apply_business_logic_filtering(self, processed_providers: List[Dict[str, Any]],
                                         target_specialties: Optional[List[str]],
-                                        target_sidecar_code: Optional[str] = None) -> List[Dict[str, Any]]:
+                                        target_sidecar_code: Optional[str] = None) -> Tuple[List[Dict[str, Any]], int]:
         """
         Apply business logic filtering and sorting to match Java implementation exactly
 
@@ -980,7 +980,7 @@ class ProviderPriceInformation:
         """
 
         if not processed_providers:
-            return []
+            return [], 0
 
         # Step 1: Enrich all providers with pricing info (matching Java)
         enriched_providers = []
@@ -1087,7 +1087,7 @@ class ProviderPriceInformation:
         # Log ALL NPIs in final order for easy comparison with Java
         all_final_npis = [self._safe_get_provider_id(p) for p in result if self._safe_get_provider_id(p)]
 
-        return result
+        return result, len(processed_providers)
 
     def _get_provider_rate(self, provider: Dict[str, Any], target_sidecar_code: Optional[str] = None) -> Optional[float]:
         """
@@ -1202,7 +1202,7 @@ class ProviderPriceInformation:
     def getProviders(self, sidecar_code: Optional[str] = None, specialties: Optional[List[str]] = None,
                      lat: Optional[float] = None, lon: Optional[float] = None,
                      radius: Optional[float] = None, zipcode: Optional[str] = None,
-                     insurance_filing_uuid: Optional[str] = None) -> List[Dict[str, Any]]:
+                     insurance_filing_uuid: Optional[str] = None) -> Tuple[List[Dict[str, Any]], int]:
         """
         Get providers/doctors from Elasticsearch with business logic filtering and sorting
 
@@ -1373,7 +1373,7 @@ class ProviderPriceInformation:
         gam_enriched_providers = self._enrich_providers_with_gam_scores(snowflake_filtered_providers)
 
         # Step 7: Apply Java-matching business logic filtering and sorting
-        filtered_providers = self._apply_business_logic_filtering(gam_enriched_providers, specialties, sidecar_code)
+        filtered_providers, original_count_before_price_filtering = self._apply_business_logic_filtering(gam_enriched_providers, specialties, sidecar_code)
 
         logger.info(f"Final provider count after all filtering and sorting: {len(filtered_providers)}")
         if filtered_providers:
@@ -1389,7 +1389,7 @@ class ProviderPriceInformation:
                 logger.info(f"Final provider distribution by category: {category_counts}")
 
         logger.info(f"Returning {len(filtered_providers)} providers after filtering and sorting")
-        return filtered_providers
+        return filtered_providers, original_count_before_price_filtering
 
     def cluster_health(self) -> Dict[str, Any]:
         """

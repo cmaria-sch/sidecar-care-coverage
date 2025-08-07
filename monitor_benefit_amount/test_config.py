@@ -4,7 +4,7 @@ Test script for centralized configuration
 """
 
 from config import config, Environment, Config
-from ProviderPriceInformation import ProviderPriceInformation
+from provider_price_information import ProviderPriceInformation
 import os
 
 def test_config():

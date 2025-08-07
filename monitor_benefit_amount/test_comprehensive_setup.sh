@@ -27,7 +27,7 @@ done
 
 echo ""
 echo "Python scripts:"
-for file in comprehensive_benefit_provider_comparison.py enhanced_benefit_calculator.py ProviderPriceInformation.py config.py; do
+for file in comprehensive_benefit_provider_comparison.py enhanced_benefit_calculator.py provider_price_information.py config.py; do
     if [ -f "$file" ]; then
         echo "  ✅ $file"
     else

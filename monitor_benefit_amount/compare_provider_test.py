@@ -15,7 +15,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 
 # Import our provider search implementation
-from ProviderPriceInformation import ProviderPriceInformation
+from provider_price_information import ProviderPriceInformation
 from enhanced_benefit_calculator import EnhancedBenefitCalculator
 from config import config
 
